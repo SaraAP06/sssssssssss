@@ -19,7 +19,7 @@ bool UserRepository::addUser(const QString& username, const QString& password, c
     query.bindValue(":role", role);
 
     if (!query.exec()) {
-        qWarning() << "Add user failed:" << query.lastError().text();
+        qWarning() << "Failed to add user:" << query.lastError().text();
         return false;
     }
 
@@ -34,7 +34,7 @@ bool UserRepository::userExists(const QString& username) {
     query.bindValue(":username", username);
 
     if (!query.exec()) {
-        qWarning() << "Add user failed:" << query.lastError().text();
+        qWarning() << "Failed to check user existence:" << query.lastError().text();
         return false;
     }
 
@@ -57,7 +57,7 @@ bool UserRepository::validateLogin(const QString& username, const QString& passw
     query.bindValue(":password", hashedPassword);
 
     if (!query.exec()) {
-        qWarning() << "Login failed:" << query.lastError().text();
+        qWarning() << "Failed to validate login:" << query.lastError().text();
         return false;
     }
 
