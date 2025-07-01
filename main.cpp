@@ -11,11 +11,11 @@ int main(int argc, char *argv[]) {
     // راه‌اندازی سرور
     Server server;
     if (!server.startServer(12345)) {
-        qCritical() << "خطا در راه‌اندازی سرور";
-        server.logMessage("خطا در راه‌اندازی سرور");
+        qCritical() << "Failed to start server";
+        server.logMessage("Failed to start server");
         return 1;
     }
 
-    server.logMessage("برنامه سرور شروع شد");
+    server.logMessage("Server application started");
     return a.exec();
 }
