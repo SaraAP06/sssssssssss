@@ -14,7 +14,7 @@ bool RestaurantRepository::addRestaurant(int ownerId, const QString& name) {
     query.bindValue(":owner_id", ownerId);
 
     if (!query.exec()) {
-        qWarning() << "خطا در اضافه کردن رستوران:" << query.lastError().text();
+        qWarning() << "Failed to add restaurant:" << query.lastError().text();
         return false;
     }
     return true;
@@ -33,7 +33,7 @@ QJsonArray RestaurantRepository::getApprovedRestaurants() {
             restaurantArray.append(rest);
         }
     } else {
-        qWarning() << "خطا در گرفتن لیست رستوران‌ها:" << query.lastError().text();
+        qWarning() << "Failed to retrieve restaurants:" << query.lastError().text();
     }
     return restaurantArray;
 }
@@ -47,7 +47,7 @@ bool RestaurantRepository::updateRestaurantStatus(int restaurantId, const QStrin
     query.bindValue(":rid", restaurantId);
 
     if (!query.exec()) {
-        qWarning() << "خطا در به‌روزرسانی وضعیت رستوران:" << query.lastError().text();
+        qWarning() << "Failed to update restaurant status:" << query.lastError().text();
         return false;
     }
     return true;
