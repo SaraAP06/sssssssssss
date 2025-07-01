@@ -8,20 +8,20 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDateTime>
+#include <QRegularExpression>
 
 // سازنده سرور
-Server::Server(QObject *parent) : QTcpServer(parent) {
-    // اتصال سیگنال‌های مربوط به کلاینت‌ها
-}
+Server::Server(QObject *parent) : QTcpServer(parent) {}
 
 // شروع به کار سرور روی پورت مشخص
 bool Server::startServer(quint16 port) {
     if (!listen(QHostAddress::Any, port)) {
-        qWarning() << "نمی‌توان سرور را روی پورت" << port << "راه‌اندازی کرد:" << errorString();
+        qWarning() << "Failed to start server on port" << port << ":" << errorString();
+        logMessage("Failed to start server on port " + QString::number(port));
         return false;
     }
-    qDebug() << "سرور روی پورت" << port << "شروع به کار کرد";
-    logMessage("سرور روی پورت " + QString::number(port) + " شروع به کار کرد");
+    qDebug() << "Server started on port" << port;
+    logMessage("Server started on port " + QString::number(port));
     return true;
 }
 
@@ -29,7 +29,8 @@ bool Server::startServer(quint16 port) {
 void Server::incomingConnection(qintptr socketDescriptor) {
     QTcpSocket *client = new QTcpSocket(this);
     if (!client->setSocketDescriptor(socketDescriptor)) {
-        qWarning() << "خطا در تنظیم سوکت کلاینت:" << client->errorString();
+        qWarning() << "Failed to set client socket:" << client->errorString();
+        logMessage("Failed to set client socket: " + QString::number(socketDescriptor));
         return;
     }
     clients.insert(socketDescriptor, client);
@@ -37,7 +38,7 @@ void Server::incomingConnection(qintptr socketDescriptor) {
     connect(client, &QTcpSocket::readyRead, this, &Server::readClientData);
     connect(client, &QTcpSocket::disconnected, this, &Server::clientDisconnected);
 
-    logMessage("کلاینت جدید متصل شد: " + QString::number(socketDescriptor));
+    logMessage("New client connected: " + QString::number(socketDescriptor));
 }
 
 // خواندن داده‌های ارسالی از کلاینت
@@ -50,9 +51,9 @@ void Server::readClientData() {
     if (doc.isNull()) {
         QJsonObject response;
         response["status"] = "error";
-        response["message"] = "JSON نامعتبر";
+        response["message"] = "Invalid JSON";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دریافت JSON نامعتبر از کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Received invalid JSON from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -95,9 +96,9 @@ void Server::readClientData() {
     } else {
         QJsonObject response;
         response["status"] = "error";
-        response["message"] = "نوع درخواست ناشناخته";
+        response["message"] = "Unknown request type";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دریافت درخواست ناشناخته از کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Received unknown request from client: " + QString::number(client->socketDescriptor()));
     }
 }
 
@@ -109,7 +110,7 @@ void Server::clientDisconnected() {
     qintptr socketDescriptor = client->socketDescriptor();
     clients.remove(socketDescriptor);
     clientUserIds.remove(socketDescriptor);
-    logMessage("کلاینت قطع شد: " + QString::number(socketDescriptor));
+    logMessage("Client disconnected: " + QString::number(socketDescriptor));
     client->deleteLater();
 }
 
@@ -122,30 +123,30 @@ void Server::handleRegister(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (username.isEmpty() || password.isEmpty()) {
         response["status"] = "error";
-        response["message"] = "نام کاربری یا رمز عبور نمی‌تواند خالی باشد";
+        response["message"] = "Username or password cannot be empty";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای ثبت‌نام با داده‌های نامعتبر از کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to register with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
     if (userRepo.userExists(username)) {
         response["status"] = "error";
-        response["message"] = "نام کاربری قبلاً ثبت شده";
+        response["message"] = "Username already exists";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای ثبت‌نام با نام کاربری تکراری: " + username);
+        logMessage("Attempt to register with duplicate username: " + username);
         return;
     }
 
     if (userRepo.addUser(username, password, role)) {
         response["status"] = "success";
-        response["message"] = "ثبت‌نام با موفقیت انجام شد";
+        response["message"] = "Registration successful";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در ثبت‌نام";
+        response["message"] = "Failed to register user";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست ثبت‌نام: " + username + " با نقش: " + role);
+    logMessage("Registration request: " + username + " with role: " + role);
 }
 
 // ورود کاربر
@@ -156,9 +157,9 @@ void Server::handleLogin(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (username.isEmpty() || password.isEmpty()) {
         response["status"] = "error";
-        response["message"] = "نام کاربری یا رمز عبور نمی‌تواند خالی باشد";
+        response["message"] = "Username or password cannot be empty";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای ورود با داده‌های نامعتبر از کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to login with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -167,16 +168,16 @@ void Server::handleLogin(const QJsonObject& json, QTcpSocket* client) {
     if (userRepo.validateLogin(username, password, userId, role)) {
         clientUserIds[client->socketDescriptor()] = userId;
         response["status"] = "success";
-        response["message"] = "ورود موفق";
+        response["message"] = "Login successful";
         response["user_id"] = userId;
         response["role"] = role;
     } else {
         response["status"] = "error";
-        response["message"] = "نام کاربری یا رمز عبور اشتباه است یا حساب بلاک شده است";
+        response["message"] = "Invalid username, password, or account is blocked";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست ورود: " + username);
+    logMessage("Login request: " + username);
 }
 
 // اضافه کردن رستوران جدید
@@ -187,9 +188,9 @@ void Server::handleAddRestaurant(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (ownerId == -1 || name.isEmpty()) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای افزودن رستوران با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to add restaurant with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -199,22 +200,22 @@ void Server::handleAddRestaurant(const QJsonObject& json, QTcpSocket* client) {
     roleQuery.bindValue(":uid", ownerId);
     if (!roleQuery.exec() || !roleQuery.next() || roleQuery.value("role").toString() != "restaurant_owner") {
         response["status"] = "error";
-        response["message"] = "فقط صاحب رستوران می‌تواند رستوران اضافه کند";
+        response["message"] = "Only restaurant owners can add restaurants";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دسترسی غیرمجاز برای افزودن رستوران توسط کاربر: " + QString::number(ownerId));
+        logMessage("Unauthorized attempt to add restaurant by user: " + QString::number(ownerId));
         return;
     }
 
     if (restaurantRepo.addRestaurant(ownerId, name)) {
         response["status"] = "success";
-        response["message"] = "رستوران با موفقیت ثبت شد و در انتظار تأیید است";
+        response["message"] = "Restaurant registered successfully, awaiting approval";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در ثبت رستوران";
+        response["message"] = "Failed to register restaurant";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست افزودن رستوران: " + name + " توسط کاربر: " + QString::number(ownerId));
+    logMessage("Add restaurant request: " + name + " by user: " + QString::number(ownerId));
 }
 
 // دریافت لیست رستوران‌ها
@@ -227,11 +228,11 @@ void Server::handleGetRestaurants(QTcpSocket* client) {
         response["restaurants"] = restaurantArray;
     } else {
         response["status"] = "error";
-        response["message"] = "نمی‌توان رستوران‌ها را دریافت کرد";
+        response["message"] = "Failed to retrieve restaurants";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست دریافت لیست رستوران‌ها از کلاینت: " + QString::number(client->socketDescriptor()));
+    logMessage("Get restaurants request from client: " + QString::number(client->socketDescriptor()));
 }
 
 // دریافت منوی رستوران
@@ -245,11 +246,11 @@ void Server::handleGetMenu(const QJsonObject& json, QTcpSocket* client) {
         response["menu"] = menuArray;
     } else {
         response["status"] = "error";
-        response["message"] = "نمی‌توان منو را دریافت کرد یا رستوران یافت نشد";
+        response["message"] = "Failed to retrieve menu or restaurant not found";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست دریافت منوی رستوران " + QString::number(restaurantId) + " از کلاینت: " + QString::number(client->socketDescriptor()));
+    logMessage("Get menu request for restaurant " + QString::number(restaurantId) + " from client: " + QString::number(client->socketDescriptor()));
 }
 
 // ثبت سفارش
@@ -261,9 +262,9 @@ void Server::handleOrder(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (customerId == -1 || items.isEmpty()) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای ثبت سفارش با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to place order with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -273,9 +274,9 @@ void Server::handleOrder(const QJsonObject& json, QTcpSocket* client) {
     restQuery.bindValue(":rid", restaurantId);
     if (!restQuery.exec() || !restQuery.next()) {
         response["status"] = "error";
-        response["message"] = "رستوران یافت نشد یا تأیید نشده";
+        response["message"] = "Restaurant not found or not approved";
         client->write(QJsonDocument(response).toJson());
-        logMessage("رستوران یافت نشد: " + QString::number(restaurantId));
+        logMessage("Restaurant not found: " + QString::number(restaurantId));
         return;
     }
 
@@ -285,9 +286,9 @@ void Server::handleOrder(const QJsonObject& json, QTcpSocket* client) {
     orderQuery.bindValue(":rid", restaurantId);
     if (!orderQuery.exec()) {
         response["status"] = "error";
-        response["message"] = "خطا در ثبت سفارش";
+        response["message"] = "Failed to place order";
         client->write(QJsonDocument(response).toJson());
-        logMessage("خطا در ثبت سفارش برای کاربر: " + QString::number(customerId));
+        logMessage("Failed to place order for user: " + QString::number(customerId));
         return;
     }
 
@@ -320,7 +321,7 @@ void Server::handleOrder(const QJsonObject& json, QTcpSocket* client) {
 
     if (itemsValid) {
         response["status"] = "success";
-        response["message"] = "سفارش ثبت شد";
+        response["message"] = "Order placed successfully";
         response["order_id"] = orderId;
         QString notification = QString("{\"type\":\"new_order\",\"order_id\":%1}").arg(orderId);
         notifyRestaurant(restaurantId, notification);
@@ -331,11 +332,11 @@ void Server::handleOrder(const QJsonObject& json, QTcpSocket* client) {
         deleteQuery.bindValue(":oid", orderId);
         deleteQuery.exec();
         response["status"] = "error";
-        response["message"] = "خطا در ثبت آیتم‌های سفارش";
+        response["message"] = "Failed to add order items";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست ثبت سفارش: ID=" + QString::number(orderId) + " توسط کاربر: " + QString::number(customerId));
+    logMessage("Place order request: ID=" + QString::number(orderId) + " by user: " + QString::number(customerId));
 }
 
 // دریافت سفارش‌های کاربر
@@ -345,9 +346,9 @@ void Server::handleGetMyOrders(QTcpSocket* client) {
 
     if (userId == -1) {
         response["status"] = "error";
-        response["message"] = "وارد سیستم نشده‌اید";
+        response["message"] = "Not logged in";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای دریافت سفارش‌ها بدون ورود - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to get orders without login from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -371,11 +372,11 @@ void Server::handleGetMyOrders(QTcpSocket* client) {
         response["orders"] = ordersArray;
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در دریافت سفارش‌ها";
+        response["message"] = "Failed to retrieve orders";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست دریافت سفارش‌های کاربر: " + QString::number(userId));
+    logMessage("Get orders request for user: " + QString::number(userId));
 }
 
 // تغییر وضعیت سفارش
@@ -385,11 +386,13 @@ void Server::handleChangeOrderStatus(const QJsonObject& json, QTcpSocket* client
     QString newStatus = json["new_status"].toString();
 
     QJsonObject response;
-    if (userId == -1 || orderId <= 0 || !newStatus.contains(QRegExp("^(pending|preparing|delivered)$"))) {
+    // بررسی معتبر بودن newStatus با QRegularExpression
+    QRegularExpression validStatus("^(pending|preparing|delivered)$");
+    if (userId == -1 || orderId <= 0 || !validStatus.match(newStatus).hasMatch()) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای تغییر وضعیت سفارش با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to change order status with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -398,9 +401,9 @@ void Server::handleChangeOrderStatus(const QJsonObject& json, QTcpSocket* client
     orderQuery.bindValue(":oid", orderId);
     if (!orderQuery.exec() || !orderQuery.next()) {
         response["status"] = "error";
-        response["message"] = "سفارش یافت نشد";
+        response["message"] = "Order not found";
         client->write(QJsonDocument(response).toJson());
-        logMessage("سفارش یافت نشد: ID=" + QString::number(orderId));
+        logMessage("Order not found: ID=" + QString::number(orderId));
         return;
     }
 
@@ -408,9 +411,9 @@ void Server::handleChangeOrderStatus(const QJsonObject& json, QTcpSocket* client
     int customerId = orderQuery.value("user_id").toInt();
     if (!restaurantRepo.isRestaurantOwner(userId, restaurantId)) {
         response["status"] = "error";
-        response["message"] = "دسترسی غیرمجاز";
+        response["message"] = "Unauthorized access";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دسترسی غیرمجاز برای تغییر وضعیت سفارش توسط کاربر: " + QString::number(userId));
+        logMessage("Unauthorized attempt to change order status by user: " + QString::number(userId));
         return;
     }
 
@@ -420,17 +423,17 @@ void Server::handleChangeOrderStatus(const QJsonObject& json, QTcpSocket* client
     updateQuery.bindValue(":oid", orderId);
     if (updateQuery.exec()) {
         response["status"] = "success";
-        response["message"] = "وضعیت سفارش به‌روزرسانی شد";
+        response["message"] = "Order status updated successfully";
         QString notification = QString("{\"type\":\"order_status_update\",\"order_id\":%1,\"new_status\":\"%2\"}")
                                  .arg(orderId).arg(newStatus);
         notifyClient(customerId, notification);
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در به‌روزرسانی وضعیت";
+        response["message"] = "Failed to update order status";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("تغییر وضعیت سفارش: ID=" + QString::number(orderId) + " به " + newStatus);
+    logMessage("Change order status request: ID=" + QString::number(orderId) + " to " + newStatus);
 }
 
 // دریافت سفارش‌های رستوران
@@ -440,9 +443,9 @@ void Server::handleGetOrdersForRestaurant(QTcpSocket* client) {
 
     if (userId == -1) {
         response["status"] = "error";
-        response["message"] = "وارد سیستم نشده‌اید";
+        response["message"] = "Not logged in";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای دریافت سفارش‌های رستوران بدون ورود - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to get restaurant orders without login from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -451,9 +454,9 @@ void Server::handleGetOrdersForRestaurant(QTcpSocket* client) {
     restQuery.bindValue(":oid", userId);
     if (!restQuery.exec() || !restQuery.next()) {
         response["status"] = "error";
-        response["message"] = "رستوران یافت نشد یا تأیید نشده";
+        response["message"] = "Restaurant not found or not approved";
         client->write(QJsonDocument(response).toJson());
-        logMessage("رستوران یافت نشد برای کاربر: " + QString::number(userId));
+        logMessage("Restaurant not found for user: " + QString::number(userId));
         return;
     }
 
@@ -493,11 +496,11 @@ void Server::handleGetOrdersForRestaurant(QTcpSocket* client) {
         response["orders"] = ordersArray;
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در دریافت سفارش‌ها";
+        response["message"] = "Failed to retrieve restaurant orders";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست دریافت سفارش‌های رستوران برای کاربر: " + QString::number(userId));
+    logMessage("Get restaurant orders request for user: " + QString::number(userId));
 }
 
 // افزودن آیتم به منو
@@ -509,9 +512,9 @@ void Server::handleAddMenuItem(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (ownerId == -1 || name.isEmpty() || price <= 0) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای افزودن آیتم منو با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to add menu item with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -520,23 +523,23 @@ void Server::handleAddMenuItem(const QJsonObject& json, QTcpSocket* client) {
     restQuery.bindValue(":oid", ownerId);
     if (!restQuery.exec() || !restQuery.next()) {
         response["status"] = "error";
-        response["message"] = "رستوران یافت نشد یا تأیید نشده";
+        response["message"] = "Restaurant not found or not approved";
         client->write(QJsonDocument(response).toJson());
-        logMessage("رستوران یافت نشد برای کاربر: " + QString::number(ownerId));
+        logMessage("Restaurant not found for user: " + QString::number(ownerId));
         return;
     }
 
     int restId = restQuery.value("id").toInt();
     if (menuRepo.addMenuItem(restId, name, price)) {
         response["status"] = "success";
-        response["message"] = "آیتم به منو اضافه شد";
+        response["message"] = "Menu item added successfully";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در افزودن آیتم";
+        response["message"] = "Failed to add menu item";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("آیتم منو اضافه شد: " + name + " برای رستوران: " + QString::number(restId));
+    logMessage("Add menu item: " + name + " for restaurant: " + QString::number(restId));
 }
 
 // ویرایش آیتم منو
@@ -549,9 +552,9 @@ void Server::handleEditMenuItem(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (ownerId == -1 || name.isEmpty() || price <= 0 || itemId <= 0) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای ویرایش آیتم منو با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to edit menu item with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -560,23 +563,23 @@ void Server::handleEditMenuItem(const QJsonObject& json, QTcpSocket* client) {
     restQuery.bindValue(":oid", ownerId);
     if (!restQuery.exec() || !restQuery.next()) {
         response["status"] = "error";
-        response["message"] = "رستوران یافت نشد یا تأیید نشده";
+        response["message"] = "Restaurant not found or not approved";
         client->write(QJsonDocument(response).toJson());
-        logMessage("رستوران یافت نشد برای کاربر: " + QString::number(ownerId));
+        logMessage("Restaurant not found for user: " + QString::number(ownerId));
         return;
     }
 
     int restId = restQuery.value("id").toInt();
     if (menuRepo.editMenuItem(itemId, restId, name, price)) {
         response["status"] = "success";
-        response["message"] = "آیتم منو به‌روزرسانی شد";
+        response["message"] = "Menu item updated successfully";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در به‌روزرسانی آیتم";
+        response["message"] = "Failed to update menu item";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("آیتم منو به‌روزرسانی شد: ID=" + QString::number(itemId));
+    logMessage("Update menu item: ID=" + QString::number(itemId));
 }
 
 // حذف آیتم منو
@@ -587,9 +590,9 @@ void Server::handleDeleteMenuItem(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (ownerId == -1 || itemId <= 0) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای حذف آیتم منو با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to delete menu item with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -598,23 +601,23 @@ void Server::handleDeleteMenuItem(const QJsonObject& json, QTcpSocket* client) {
     restQuery.bindValue(":oid", ownerId);
     if (!restQuery.exec() || !restQuery.next()) {
         response["status"] = "error";
-        response["message"] = "رستوران یافت نشد یا تأیید نشده";
+        response["message"] = "Restaurant not found or not approved";
         client->write(QJsonDocument(response).toJson());
-        logMessage("رستوران یافت نشد برای کاربر: " + QString::number(ownerId));
+        logMessage("Restaurant not found for user: " + QString::number(ownerId));
         return;
     }
 
     int restId = restQuery.value("id").toInt();
     if (menuRepo.deleteMenuItem(itemId, restId)) {
         response["status"] = "success";
-        response["message"] = "آیتم منو حذف شد";
+        response["message"] = "Menu item deleted successfully";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در حذف آیتم";
+        response["message"] = "Failed to delete menu item";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("آیتم منو حذف شد: ID=" + QString::number(itemId));
+    logMessage("Delete menu item: ID=" + QString::number(itemId));
 }
 
 // امتیازدهی به سفارش
@@ -627,9 +630,9 @@ void Server::handleRateOrder(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (userId == -1 || orderId <= 0 || rating < 1 || rating > 5) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای امتیازدهی با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to rate order with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -638,9 +641,9 @@ void Server::handleRateOrder(const QJsonObject& json, QTcpSocket* client) {
     orderQuery.bindValue(":oid", orderId);
     if (!orderQuery.exec() || !orderQuery.next() || orderQuery.value("user_id").toInt() != userId) {
         response["status"] = "error";
-        response["message"] = "سفارش یافت نشد یا متعلق به شما نیست";
+        response["message"] = "Order not found or does not belong to user";
         client->write(QJsonDocument(response).toJson());
-        logMessage("سفارش یافت نشد یا متعلق به کاربر نیست: ID=" + QString::number(orderId));
+        logMessage("Order not found or does not belong to user: ID=" + QString::number(orderId));
         return;
     }
 
@@ -653,14 +656,14 @@ void Server::handleRateOrder(const QJsonObject& json, QTcpSocket* client) {
     rateQuery.bindValue(":comment", comment);
     if (rateQuery.exec()) {
         response["status"] = "success";
-        response["message"] = "امتیاز ثبت شد";
+        response["message"] = "Rating submitted successfully";
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در ثبت امتیاز";
+        response["message"] = "Failed to submit rating";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("امتیازدهی به سفارش: ID=" + QString::number(orderId) + " توسط کاربر: " + QString::number(userId));
+    logMessage("Rate order request: ID=" + QString::number(orderId) + " by user: " + QString::number(userId));
 }
 
 // دریافت امتیازات رستوران
@@ -671,17 +674,17 @@ void Server::handleGetRatings(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (userId == -1 || restaurantId <= 0) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای دریافت امتیازات با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to get ratings with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
     if (!restaurantRepo.isRestaurantOwner(userId, restaurantId)) {
         response["status"] = "error";
-        response["message"] = "دسترسی غیرمجاز";
+        response["message"] = "Unauthorized access";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دسترسی غیرمجاز برای دریافت امتیازات توسط کاربر: " + QString::number(userId));
+        logMessage("Unauthorized attempt to get ratings by user: " + QString::number(userId));
         return;
     }
 
@@ -705,11 +708,11 @@ void Server::handleGetRatings(const QJsonObject& json, QTcpSocket* client) {
         response["ratings"] = ratingsArray;
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در دریافت امتیازات";
+        response["message"] = "Failed to retrieve ratings";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("درخواست دریافت امتیازات رستوران: " + QString::number(restaurantId));
+    logMessage("Get ratings request for restaurant: " + QString::number(restaurantId));
 }
 
 // تأیید یا رد رستوران
@@ -719,11 +722,13 @@ void Server::handleApproveRestaurant(const QJsonObject& json, QTcpSocket* client
     QString newStatus = json["status"].toString();
 
     QJsonObject response;
-    if (userId == -1 || restaurantId <= 0 || !newStatus.contains(QRegExp("^(approved|rejected)$"))) {
+    // بررسی معتبر بودن newStatus با QRegularExpression
+    QRegularExpression validStatus("^(approved|rejected)$");
+    if (userId == -1 || restaurantId <= 0 || !validStatus.match(newStatus).hasMatch()) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای تأیید رستوران با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to approve restaurant with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -732,21 +737,21 @@ void Server::handleApproveRestaurant(const QJsonObject& json, QTcpSocket* client
     roleQuery.bindValue(":uid", userId);
     if (!roleQuery.exec() || !roleQuery.next() || roleQuery.value("role").toString() != "admin") {
         response["status"] = "error";
-        response["message"] = "دسترسی غیرمجاز";
+        response["message"] = "Unauthorized access";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دسترسی غیرمجاز برای تأیید رستوران توسط کاربر: " + QString::number(userId));
+        logMessage("Unauthorized attempt to approve restaurant by user: " + QString::number(userId));
         return;
     }
 
     if (restaurantRepo.updateRestaurantStatus(restaurantId, newStatus)) {
         response["status"] = "success";
-        response["message"] = "وضعیت رستوران به‌روزرسانی شد";
+        response["message"] = "Restaurant status updated successfully";
         QString notification = QString("{\"type\":\"restaurant_status\",\"status\":\"%1\"}").arg(newStatus);
         notifyRestaurant(restaurantId, notification);
-        logMessage("وضعیت رستوران " + QString::number(restaurantId) + " به " + newStatus + " تغییر کرد");
+        logMessage("Restaurant status changed: ID=" + QString::number(restaurantId) + " to " + newStatus);
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در به‌روزرسانی وضعیت رستوران";
+        response["message"] = "Failed to update restaurant status";
     }
 
     client->write(QJsonDocument(response).toJson());
@@ -761,9 +766,9 @@ void Server::handleBlockUser(const QJsonObject& json, QTcpSocket* client) {
     QJsonObject response;
     if (userId == -1 || targetUserId <= 0) {
         response["status"] = "error";
-        response["message"] = "داده‌های نامعتبر";
+        response["message"] = "Invalid data";
         client->write(QJsonDocument(response).toJson());
-        logMessage("تلاش برای بلاک/آنبلاک با داده‌های نامعتبر - کلاینت: " + QString::number(client->socketDescriptor()));
+        logMessage("Attempt to block/unblock with invalid data from client: " + QString::number(client->socketDescriptor()));
         return;
     }
 
@@ -772,9 +777,9 @@ void Server::handleBlockUser(const QJsonObject& json, QTcpSocket* client) {
     roleQuery.bindValue(":uid", userId);
     if (!roleQuery.exec() || !roleQuery.next() || roleQuery.value("role").toString() != "admin") {
         response["status"] = "error";
-        response["message"] = "دسترسی غیرمجاز";
+        response["message"] = "Unauthorized access";
         client->write(QJsonDocument(response).toJson());
-        logMessage("دسترسی غیرمجاز برای بلاک/آنبلاک توسط کاربر: " + QString::number(userId));
+        logMessage("Unauthorized attempt to block/unblock by user: " + QString::number(userId));
         return;
     }
 
@@ -784,16 +789,16 @@ void Server::handleBlockUser(const QJsonObject& json, QTcpSocket* client) {
     blockQuery.bindValue(":uid", targetUserId);
     if (blockQuery.exec()) {
         response["status"] = "success";
-        response["message"] = block ? "کاربر بلاک شد" : "کاربر آنبلاک شد";
+        response["message"] = block ? "User blocked successfully" : "User unblocked successfully";
         QString notification = QString("{\"type\":\"account_status\",\"blocked\":%1}").arg(block ? "true" : "false");
         notifyClient(targetUserId, notification);
     } else {
         response["status"] = "error";
-        response["message"] = "خطا در تغییر وضعیت کاربر";
+        response["message"] = "Failed to change user status";
     }
 
     client->write(QJsonDocument(response).toJson());
-    logMessage("تغییر وضعیت کاربر: ID=" + QString::number(targetUserId) + " به " + (block ? "بلاک" : "آنبلاک"));
+    logMessage("Change user status: ID=" + QString::number(targetUserId) + " to " + (block ? "blocked" : "unblocked"));
 }
 
 // اطلاع‌رسانی به رستوران
@@ -806,7 +811,7 @@ void Server::notifyRestaurant(int restaurantId, const QString& message) {
             QTcpSocket* client = clients.value(it.key());
             if (client && client->state() == QAbstractSocket::ConnectedState) {
                 client->write(message.toUtf8());
-                logMessage("ارسال نوتیفیکیشن به رستوران: " + QString::number(restaurantId));
+                logMessage("Notification sent to restaurant: " + QString::number(restaurantId));
             }
         }
     }
@@ -819,7 +824,7 @@ void Server::notifyClient(int userId, const QString& message) {
             QTcpSocket* client = clients.value(it.key());
             if (client && client->state() == QAbstractSocket::ConnectedState) {
                 client->write(message.toUtf8());
-                logMessage("ارسال نوتیفیکیشن به کاربر: " + QString::number(userId));
+                logMessage("Notification sent to user: " + QString::number(userId));
             }
         }
     }
