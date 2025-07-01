@@ -15,7 +15,7 @@ bool MenuRepository::addMenuItem(int restaurantId, const QString& name, double p
     query.bindValue(":price", price);
 
     if (!query.exec()) {
-        qWarning() << "خطا در اضافه کردن آیتم منو:" << query.lastError().text();
+        qWarning() << "Failed to add menu item:" << query.lastError().text();
         return false;
     }
     return true;
@@ -32,7 +32,7 @@ bool MenuRepository::editMenuItem(int itemId, int restaurantId, const QString& n
     query.bindValue(":rid", restaurantId);
 
     if (!query.exec()) {
-        qWarning() << "خطا در ویرایش آیتم منو:" << query.lastError().text();
+        qWarning() << "Failed to edit menu item:" << query.lastError().text();
         return false;
     }
     return true;
@@ -47,7 +47,7 @@ bool MenuRepository::deleteMenuItem(int itemId, int restaurantId) {
     query.bindValue(":rid", restaurantId);
 
     if (!query.exec()) {
-        qWarning() << "خطا در حذف آیتم منو:" << query.lastError().text();
+        qWarning() << "Failed to delete menu item:" << query.lastError().text();
         return false;
     }
     return true;
@@ -70,7 +70,7 @@ QJsonArray MenuRepository::getMenu(int restaurantId) {
             menuArray.append(item);
         }
     } else {
-        qWarning() << "خطا در گرفتن منوی رستوران:" << query.lastError().text();
+        qWarning() << "Failed to retrieve menu:" << query.lastError().text();
     }
     return menuArray;
 }
