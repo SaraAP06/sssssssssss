@@ -3,7 +3,7 @@
 #include <QSqlError>
 #include <QDebug>
 
-// پیاده سازی Singleton
+// پیاده‌سازی Singleton
 Database& Database::instance() {
     static Database instance;
     return instance;
@@ -17,10 +17,10 @@ Database::Database() {
 
     // تلاش برای اتصال به دیتابیس
     if (!db.open()) {
-        qCritical() << "Cannot open database:" << db.lastError().text();
+        qCritical() << "Failed to open database:" << db.lastError().text();
         exit(1); // خاتمه برنامه
     } else {
-        qDebug() << "Database connected.";
+        qDebug() << "Database connected successfully.";
     }
 }
 
@@ -28,7 +28,7 @@ Database::Database() {
 Database::~Database() {
     if (db.isOpen()) {
         db.close();
-        qDebug() << "اتصال دیتابیس بسته شد.";
+        qDebug() << "Database connection closed.";
     }
 }
 
@@ -120,7 +120,7 @@ void Database::setupTables() {
         )
     )";
     if (!query.exec(createMenuItemsTable)) {
-        qCritical() << "ایجاد جدول آیتم‌های منو ناموفق بود:" << query.lastError().text();
+        qCritical() << "Failed to create menu_items table:" << query.lastError().text();
         db.rollback();
         return;
     }
@@ -138,11 +138,11 @@ void Database::setupTables() {
         )
     )";
     if (!query.exec(createRatingsTable)) {
-        qCritical() << "ایجاد جدول امتیازات ناموفق بود:" << query.lastError().text();
+        qCritical() << "Failed to create ratings table:" << query.lastError().text();
         db.rollback();
         return;
     }
 
     db.commit(); // تثبیت تراکنش
-    qDebug() << "All tables are set up correctly.";
+    qDebug() << "All tables created successfully.";
 }
