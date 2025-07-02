@@ -45,185 +45,152 @@ private slots:
 
 private:
     void runTests() {
-        QJsonObject request;
+        QJsonObject request; // شیء غیر const
         switch (currentTest) {
         case 0: // Test register (valid customer)
             qDebug() << "Testing register (valid customer)...";
-            request = {
-                {"type", "register"},
-                {"username", "testcustomer"},
-                {"password", "pass123"},
-                {"role", "customer"}
-            };
+            request.insert("type", "register");
+            request.insert("username", "testcustomer");
+            request.insert("password", "pass123");
+            request.insert("role", "customer");
             break;
         case 1: // Test register (duplicate username)
             qDebug() << "Testing register (duplicate username)...";
-            request = {
-                {"type", "register"},
-                {"username", "testcustomer"},
-                {"password", "pass123"},
-                {"role", "customer"}
-            };
+            request.insert("type", "register");
+            request.insert("username", "testcustomer");
+            request.insert("password", "pass123");
+            request.insert("role", "customer");
             break;
         case 2: // Test register (invalid data)
             qDebug() << "Testing register (invalid data)...";
-            request = {
-                {"type", "register"},
-                {"username", ""},
-                {"password", "pass123"}
-            };
+            request.insert("type", "register");
+            request.insert("username", "");
+            request.insert("password", "pass123");
             break;
         case 3: // Test login (valid customer)
             qDebug() << "Testing login (valid customer)...";
-            request = {
-                {"type", "login"},
-                {"username", "testcustomer"},
-                {"password", "pass123"}
-            };
+            request.insert("type", "login");
+            request.insert("username", "testcustomer");
+            request.insert("password", "pass123");
             break;
         case 4: // Test login (invalid credentials)
             qDebug() << "Testing login (invalid credentials)...";
-            request = {
-                {"type", "login"},
-                {"username", "testcustomer"},
-                {"password", "wrongpass"}
-            };
+            request.insert("type", "login");
+            request.insert("username", "testcustomer");
+            request.insert("password", "wrongpass");
             break;
         case 5: // Test register (restaurant owner)
             qDebug() << "Testing register (restaurant owner)...";
-            request = {
-                {"type", "register"},
-                {"username", "testowner"},
-                {"password", "pass123"},
-                {"role", "restaurant_owner"}
-            };
+            request.insert("type", "register");
+            request.insert("username", "testowner");
+            request.insert("password", "pass123");
+            request.insert("role", "restaurant_owner");
             break;
         case 6: // Test login (restaurant owner)
             qDebug() << "Testing login (restaurant owner)...";
-            request = {
-                {"type", "login"},
-                {"username", "testowner"},
-                {"password", "pass123"}
-            };
+            request.insert("type", "login");
+            request.insert("username", "testowner");
+            request.insert("password", "pass123");
             break;
         case 7: // Test add_restaurant (valid)
             qDebug() << "Testing add_restaurant (valid)...";
-            request = {
-                {"type", "add_restaurant"},
-                {"name", "Test Restaurant"}
-            };
+            request.insert("type", "add_restaurant");
+            request.insert("name", "Test Restaurant");
             break;
         case 8: // Test add_restaurant (invalid: not logged in)
             qDebug() << "Testing add_restaurant (invalid: not logged in)...";
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "add_restaurant"},
-                    {"name", "Test Restaurant"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "add_restaurant");
+                req.insert("name", "Test Restaurant");
+                socket.write(QJsonDocument(req).toJson());
             });
             return;
         case 9: // Test register (admin)
             qDebug() << "Testing register (admin)...";
-            request = {
-                {"type", "register"},
-                {"username", "testadmin"},
-                {"password", "pass123"},
-                {"role", "admin"}
-            };
+            request.insert("type", "register");
+            request.insert("username", "testadmin");
+            request.insert("password", "pass123");
+            request.insert("role", "admin");
             break;
         case 10: // Test login (admin)
             qDebug() << "Testing login (admin)...";
-            request = {
-                {"type", "login"},
-                {"username", "testadmin"},
-                {"password", "pass123"}
-            };
+            request.insert("type", "login");
+            request.insert("username", "testadmin");
+            request.insert("password", "pass123");
             break;
         case 11: // Test approve_restaurant (valid)
             qDebug() << "Testing approve_restaurant (valid)...";
-            request = {
-                {"type", "approve_restaurant"},
-                {"restaurant_id", 1},
-                {"status", "approved"}
-            };
+            request.insert("type", "approve_restaurant");
+            request.insert("restaurant_id", 1);
+            request.insert("status", "approved");
             break;
         case 12: // Test approve_restaurant (invalid: not admin)
             qDebug() << "Testing approve_restaurant (invalid: not admin)...";
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testcustomer"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testcustomer");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "approve_restaurant"},
-                        {"restaurant_id", 1},
-                        {"status", "approved"}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "approve_restaurant");
+                    req2.insert("restaurant_id", 1);
+                    req2.insert("status", "approved");
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
         case 13: // Test get_restaurants
             qDebug() << "Testing get_restaurants...";
-            request = {
-                {"type", "get_restaurants"}
-            };
+            request.insert("type", "get_restaurants");
             break;
         case 14: // Test add_menu_item (valid)
             qDebug() << "Testing add_menu_item (valid)...";
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "add_menu_item"},
-                        {"name", "Pizza"},
-                        {"price", 10.99}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "add_menu_item");
+                    req2.insert("name", "Pizza");
+                    req2.insert("price", 10.99);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
         case 15: // Test get_menu
             qDebug() << "Testing get_menu...";
-            request = {
-                {"type", "get_menu"},
-                {"restaurant_id", 1}
-            };
+            request.insert("type", "get_menu");
+            request.insert("restaurant_id", 1);
             break;
         case 16: // Test edit_menu_item (valid)
             qDebug() << "Testing edit_menu_item (valid)...";
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "edit_menu_item"},
-                        {"item_id", 1},
-                        {"name", "Updated Pizza"},
-                        {"price", 12.99}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "edit_menu_item");
+                    req2.insert("item_id", 1);
+                    req2.insert("name", "Updated Pizza");
+                    req2.insert("price", 12.99);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -232,18 +199,16 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "delete_menu_item"},
-                        {"item_id", 1}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "delete_menu_item");
+                    req2.insert("item_id", 1);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -252,22 +217,22 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testcustomer"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testcustomer");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    QJsonArray items = {
-                        QJsonObject{{"item_id", 1}, {"quantity", 2}}
-                    };
-                    request = {
-                        {"type", "order"},
-                        {"restaurant_id", 1},
-                        {"items", items}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject item;
+                    item.insert("item_id", 1);
+                    item.insert("quantity", 2);
+                    QJsonArray items;
+                    items.append(item);
+                    QJsonObject req2;
+                    req2.insert("type", "order");
+                    req2.insert("restaurant_id", 1);
+                    req2.insert("items", items);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -276,17 +241,15 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testcustomer"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testcustomer");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "get_my_orders"}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "get_my_orders");
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -295,19 +258,17 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "change_order_status"},
-                        {"order_id", 1},
-                        {"new_status", "preparing"}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "change_order_status");
+                    req2.insert("order_id", 1);
+                    req2.insert("new_status", "preparing");
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -316,17 +277,15 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "get_orders_for_restaurant"}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "get_orders_for_restaurant");
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -335,20 +294,18 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testcustomer"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testcustomer");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "rate_order"},
-                        {"order_id", 1},
-                        {"rating", 5},
-                        {"comment", "Great food!"}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "rate_order");
+                    req2.insert("order_id", 1);
+                    req2.insert("rating", 5);
+                    req2.insert("comment", "Great food!");
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -357,18 +314,16 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testowner"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testowner");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "get_ratings"},
-                        {"restaurant_id", 1}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "get_ratings");
+                    req2.insert("restaurant_id", 1);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
@@ -377,19 +332,17 @@ private:
             socket.disconnectFromHost();
             socket.connectToHost("localhost", 12345);
             QTimer::singleShot(1000, this, [=]() {
-                request = {
-                    {"type", "login"},
-                    {"username", "testadmin"},
-                    {"password", "pass123"}
-                };
-                socket.write(QJsonDocument(request).toJson());
+                QJsonObject req;
+                req.insert("type", "login");
+                req.insert("username", "testadmin");
+                req.insert("password", "pass123");
+                socket.write(QJsonDocument(req).toJson());
                 QTimer::singleShot(1000, this, [=]() {
-                    request = {
-                        {"type", "block_user"},
-                        {"user_id", 1},
-                        {"block", true}
-                    };
-                    socket.write(QJsonDocument(request).toJson());
+                    QJsonObject req2;
+                    req2.insert("type", "block_user");
+                    req2.insert("user_id", 1);
+                    req2.insert("block", true);
+                    socket.write(QJsonDocument(req2).toJson());
                 });
             });
             return;
