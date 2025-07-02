@@ -13,6 +13,7 @@ public:
         connect(&socket, &QTcpSocket::connected, this, &TestClient::onConnected);
         connect(&socket, &QTcpSocket::readyRead, this, &TestClient::onReadyRead);
         connect(&socket, &QTcpSocket::disconnected, this, &TestClient::onDisconnected);
+        connect(&socket, &QTcpSocket::errorOccurred, this, &TestClient::onErrorOccurred); // اضافه شده
     }
 
     void start() {
@@ -43,9 +44,14 @@ private slots:
         QCoreApplication::quit();
     }
 
+    void onErrorOccurred(QAbstractSocket::SocketError socketError) { // اضافه شده
+        qDebug() << "Socket error:" << socket.errorString();
+        QCoreApplication::quit();
+    }
+
 private:
     void runTests() {
-        QJsonObject request; // شیء غیر const
+        QJsonObject request;
         switch (currentTest) {
         case 0: // Test register (valid customer)
             qDebug() << "Testing register (valid customer)...";
